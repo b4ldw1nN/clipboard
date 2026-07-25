@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Database file
+*.db
+database.db
+
+# User uploads
+uploads/*
+!uploads/.gitkeep
+
+# System & OS files
+.DS_Store
+Thumbs.db
+*.log
+
+# Vercel
+.vercel
