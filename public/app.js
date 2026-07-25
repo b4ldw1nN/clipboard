@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentRoomTag = document.getElementById('current-room-tag');
     const profileNameText = document.getElementById('profile-name-text');
     const btnCopyRoom = document.getElementById('btn-copy-room');
+    const btnLeaveRoom = document.getElementById('btn-leave-room');
 
     const dragOverlay = document.getElementById('drag-overlay');
     const chatStream = document.getElementById('chat-stream');
@@ -142,6 +143,20 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Room Code copied to clipboard!');
         });
     });
+
+    // Leave Room Handler
+    if (btnLeaveRoom) {
+        btnLeaveRoom.addEventListener('click', () => {
+            if (socket) socket.disconnect();
+            currentRoomId = null;
+            window.location.hash = '';
+            chatStream.innerHTML = '';
+            appContainer.classList.add('hidden');
+            roomModal.classList.remove('hidden');
+            inputRoomId.value = '';
+            showToast('Left room successfully');
+        });
+    }
 
     // --- Socket.IO & Real-time Room Handling ---
     function connectSocket() {
