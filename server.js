@@ -19,7 +19,27 @@ const DB_PATH = path.join(__dirname, 'database.db');
 
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
 
-let db;
+let dbPromise = null;
+
+async function getDb() {
+    if (!db) {
+        if (!dbPromise) dbPromise = initDatabase();
+        await dbPromise;
+    }
+    return db;
+}
+
+// Middleware to ensure DB is initialized
+app.use(async (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/download')) {
+        try {
+            await getDb();
+        } catch (err) {
+            return res.status(500).json({ error: 'Database initialization failed: ' + err.message });
+        }
+    }
+    next();
+});
 
 // --- Pure JS Database Setup ---
 async function initDatabase() {
