@@ -138,25 +138,29 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Fetch Clipboard Content
             const cRes = await fetch('/api/clipboard');
-            const cData = await cRes.json();
-            clipboardText.value = cData.content || '';
-            lastUpdated.dataset.time = cData.updated_at;
-            updateTimestamps();
+            if (cRes.ok && cRes.headers.get('content-type')?.includes('application/json')) {
+                const cData = await cRes.json();
+                clipboardText.value = cData.content || '';
+                lastUpdated.dataset.time = cData.updated_at;
+                updateTimestamps();
+            }
 
             // Fetch Chat Stream Messages
             const mRes = await fetch('/api/messages');
-            const mData = await mRes.json();
-            chatMessages.innerHTML = '';
-            if (!Array.isArray(mData) || mData.length === 0) {
-                chatMessages.innerHTML = `
-                    <div class="chat-empty">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                        <p>No messages in stream</p>
-                        <span>Messages sent from clipboard or typed below will appear here in real time.</span>
-                    </div>`;
-            } else {
-                mData.forEach(msg => addMessageToChat(msg, false));
-                scrollToBottomChat();
+            if (mRes.ok && mRes.headers.get('content-type')?.includes('application/json')) {
+                const mData = await mRes.json();
+                chatMessages.innerHTML = '';
+                if (!Array.isArray(mData) || mData.length === 0) {
+                    chatMessages.innerHTML = `
+                        <div class="chat-empty">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            <p>No messages in stream</p>
+                            <span>Messages sent from clipboard or typed below will appear here in real time.</span>
+                        </div>`;
+                } else {
+                    mData.forEach(msg => addMessageToChat(msg, false));
+                    scrollToBottomChat();
+                }
             }
 
             // Fetch Files
@@ -215,6 +219,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sender_id: deviceId, text })
             });
+            const contentType = res.headers.get('content-type');
+            if (!res.ok || !contentType || !contentType.includes('application/json')) {
+                const errText = await res.text();
+                console.error('Server error response:', errText);
+                showToast('Server error sending message', true);
+                return;
+            }
             const data = await res.json();
             if (data.message) {
                 addMessageToChat(data.message);

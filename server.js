@@ -14,12 +14,14 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 const MAX_UPLOAD_SIZE = parseInt(process.env.MAX_UPLOAD_SIZE, 10) || (25 * 1024 * 1024);
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-const DB_PATH = path.join(__dirname, 'database.db');
+const IS_VERCEL = process.env.VERCEL || process.env.NOW_REGION;
+const UPLOAD_DIR = IS_VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
+const DB_PATH = IS_VERCEL ? path.join('/tmp', 'database.db') : path.join(__dirname, 'database.db');
 
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 let dbPromise = null;
+let db = null;
 
 async function getDb() {
     if (!db) {
