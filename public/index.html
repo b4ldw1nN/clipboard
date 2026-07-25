@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clipboard & Chat Workspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <!-- Main Workspace Container -->
+    <div id="app-container" class="app-layout fade-in">
+        
+        <!-- App Header Bar -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                </div>
+                <div class="brand-details">
+                    <h1>Clipboard Workspace</h1>
+                    <span class="brand-sub">Realtime Clipboard Sharing & File Vault</span>
+                </div>
+            </div>
+
+            <div class="header-meta">
+                <div class="device-tag">
+                    <span class="pulse-indicator"></span>
+                    <span id="device-id-text">Connecting...</span>
+                </div>
+                <div id="typing-indicator" class="typing-pill hidden">
+                    <span class="wave-dot"></span>
+                    <span class="wave-dot"></span>
+                    <span class="wave-dot"></span>
+                    <span>Partner typing...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main 2-Column Split Interface -->
+        <div class="workspace-grid">
+            
+            <!-- Left Side: Live Clipboard & File Vault -->
+            <div class="left-column">
+                
+                <!-- Live Clipboard Scratchpad -->
+                <section class="card clip-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <span class="pill pill-primary">Live Sync</span>
+                            <h2>Active Clipboard</h2>
+                        </div>
+                        <div class="panel-tools">
+                            <span class="status-time" id="last-updated" data-time="">Syncing...</span>
+                            <button id="btn-copy-live" class="btn btn-secondary btn-xs">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                Copy
+                            </button>
+                            <button id="btn-clear-live" class="btn btn-ghost-danger btn-xs">Clear</button>
+                        </div>
+                    </div>
+                    
+                    <textarea id="clipboard-text" placeholder="Type or paste primary clipboard text here... Realtime sync active across devices."></textarea>
+                    
+                    <div class="panel-footer">
+                        <span class="retention-info">Messages delete after 7 days</span>
+                        <button id="btn-send-to-chat" class="btn btn-primary">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            Send to Chat Stream
+                        </button>
+                    </div>
+                </section>
+
+                <!-- File Transfers Panel -->
+                <section class="card file-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <h2>File Vault</h2>
+                        </div>
+                        <div class="panel-tools">
+                            <span class="badge-warning">Files auto-delete after 48 hours</span>
+                            <button id="btn-upload" class="btn btn-secondary btn-xs">
+                                Upload File
+                            </button>
+                            <input type="file" id="file-input" class="hidden">
+                        </div>
+                    </div>
+
+                    <div id="drop-zone" class="file-dropzone">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        <p>Drag and drop files here, or paste images using Ctrl+V</p>
+                        <span>Max file size: 25MB</span>
+                    </div>
+
+                    <div id="file-list" class="file-list"></div>
+                </section>
+            </div>
+
+            <!-- Right Side: Chat Stream UI -->
+            <div class="right-column">
+                <section class="card chat-panel">
+                    <div class="chat-header">
+                        <div class="chat-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            <h2>Chat Stream</h2>
+                        </div>
+                        <button id="btn-clear-chat" class="btn btn-ghost-danger btn-xs">Clear Stream</button>
+                    </div>
+
+                    <!-- Scrollable Chat Stream Feed -->
+                    <div id="chat-messages" class="chat-feed">
+                        <div class="chat-empty">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            <p>No messages in stream</p>
+                            <span>Messages sent from clipboard or typed below will appear here in real time.</span>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Chat Composer -->
+                    <div class="chat-composer">
+                        <textarea id="chat-input" placeholder="Type a message or press Enter to send..." rows="2"></textarea>
+                        <button id="btn-send-chat" class="btn btn-primary btn-icon" title="Send message">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>
