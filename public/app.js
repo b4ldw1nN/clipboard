@@ -93,6 +93,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function connectSocket() {
+        if (typeof io === 'undefined') {
+            console.warn('Socket.IO library not loaded or unsupported in serverless environment.');
+            return;
+        }
         if (socket) socket.disconnect();
         socket = io();
 
@@ -307,8 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const fd = new FormData(); fd.append('file', file);
         btnUpload.textContent = 'Uploading...'; btnUpload.disabled = true;
         try {
-            const res = await fetch('/api/upload', { method: 'POST', headers: getAuthHeaders(), body: fd });
-            if (res.status === 401) return handleUnauthorized();
+            const res = await fetch('/api/upload', { method: 'POST', body: fd });
             if (!res.ok) throw new Error((await res.json()).error || 'Upload failed');
         } catch (err) { showToast(err.message, true); } 
         finally { btnUpload.textContent = 'Upload File'; btnUpload.disabled = false; }
@@ -329,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         div.querySelector('.btn-download').addEventListener('click', function() {
             this.textContent = '...';
-            fetch(`/download/${file.id}`, { headers: getAuthHeaders() }).then(r => { if (r.status === 401) handleUnauthorized(); return r.blob(); }).then(blob => {
+            fetch(`/download/${file.id}`).then(r => r.blob()).then(blob => {
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.original_name; document.body.appendChild(a); a.click(); a.remove();
                 this.textContent = 'Done';
                 setTimeout(() => this.textContent = 'Download', 1500);
@@ -338,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         div.querySelector('.btn-delete').addEventListener('click', async function() {
             this.textContent = '...';
-            try { const r = await fetch(`/api/file/${file.id}`, { method: 'DELETE', headers: getAuthHeaders() }); if (r.status === 401) handleUnauthorized(); if (!r.ok) throw new Error(); } 
+            try { const r = await fetch(`/api/file/${file.id}`, { method: 'DELETE' }); if (!r.ok) throw new Error(); } 
             catch { showToast('Delete failed', true); this.textContent = 'Delete'; }
         });
 

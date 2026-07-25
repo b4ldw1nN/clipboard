@@ -142,6 +142,11 @@ const upload = multer({ storage, limits: { fileSize: MAX_UPLOAD_SIZE } });
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Health check endpoint for uptime monitors
+app.get('/ping', (req, res) => {
+    res.status(200).send('pong');
+});
+
 // --- REST API Endpoints ---
 app.post('/api/auth', (req, res) => {
     if (process.env.CLIPBOARD_PASSWORD && req.body.password === process.env.CLIPBOARD_PASSWORD) {
