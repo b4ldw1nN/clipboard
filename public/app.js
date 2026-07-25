@@ -302,6 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- File Upload ---
+    dropZone.addEventListener('click', () => fileInput.click());
     btnUpload.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { uploadFile(e.target.files[0]); fileInput.value = ''; } });
 
