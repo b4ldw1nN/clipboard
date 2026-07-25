@@ -3,132 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clipboard & Chat Workspace</title>
+    <title>Shared Clipboard</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="shortcut icon" href="/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-    <!-- Main Workspace Container -->
-    <div id="app-container" class="app-layout fade-in">
+    <!-- Starting Page: Create or Join Secure Room -->
+    <div id="room-modal" class="modal-overlay">
+        <div class="card auth-card">
+            <div class="auth-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            </div>
+            <h2>Shared Clipboard</h2>
+            <p>Create a new secure clipboard room or join an existing room with a Room ID.</p>
+            
+            <div class="room-actions">
+                <button id="btn-create-room" class="btn btn-primary btn-full">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Create New Room
+                </button>
+                
+                <div class="divider"><span>OR JOIN ROOM</span></div>
+
+                <form id="join-room-form">
+                    <input type="text" id="input-room-id" placeholder="Enter 6-digit Room ID (e.g. a1b2c3)" required autocomplete="off">
+                    <button type="submit" class="btn btn-secondary btn-full">Join Room</button>
+                </form>
+            </div>
+            
+            <p id="room-error" class="error-text hidden"></p>
+        </div>
+    </div>
+
+    <!-- Drag and Drop Fullscreen Overlay -->
+    <div id="drag-overlay" class="drag-overlay hidden">
+        <div class="drag-content">
+            <div class="drag-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </div>
+            <h3>Drop file to share</h3>
+            <p>File will be uploaded and sent directly to the chat stream</p>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="app-container hidden">
         
-        <!-- App Header Bar -->
+        <!-- Header -->
         <header class="app-header">
             <div class="brand">
-                <div class="brand-icon">
+                <div class="brand-logo">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
                 </div>
-                <div class="brand-details">
-                    <h1>Clipboard Workspace</h1>
-                    <span class="brand-sub">Realtime Clipboard Sharing & File Vault</span>
+                <div class="brand-info">
+                    <h1>Room: <span id="current-room-tag" class="room-tag">---</span></h1>
+                    <span id="user-count-badge" class="online-badge">
+                        <span class="pulse-dot"></span>
+                        <span id="user-count-text">1 user online</span>
+                    </span>
                 </div>
             </div>
 
-            <div class="header-meta">
-                <div class="device-tag">
-                    <span class="pulse-indicator"></span>
-                    <span id="device-id-text">Connecting...</span>
+            <div class="header-actions">
+                <div id="user-profile-badge" class="profile-badge">
+                    <span id="profile-name-text">---</span>
                 </div>
+
+                <button id="btn-copy-room" class="btn btn-secondary btn-sm" title="Copy Room ID">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    Copy Room Code
+                </button>
+                
                 <div id="typing-indicator" class="typing-pill hidden">
-                    <span class="wave-dot"></span>
-                    <span class="wave-dot"></span>
-                    <span class="wave-dot"></span>
-                    <span>Partner typing...</span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span id="typing-user-text">Someone is typing...</span>
                 </div>
             </div>
         </header>
 
-        <!-- Main 2-Column Split Interface -->
-        <div class="workspace-grid">
-            
-            <!-- Left Side: Live Clipboard & File Vault -->
-            <div class="left-column">
+        <!-- Chat Stream -->
+        <main id="chat-stream" class="chat-stream">
+            <div id="empty-state" class="empty-state">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                <p>No messages in this room yet</p>
+                <span>Type or paste text/files below. Anyone with this Room Code can join.</span>
+            </div>
+        </main>
+
+        <!-- Input Area -->
+        <footer class="app-footer">
+            <div class="input-wrapper">
+                <button id="btn-attach" class="btn-icon" title="Attach File">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                </button>
+                <input type="file" id="file-input" class="hidden">
                 
-                <!-- Live Clipboard Scratchpad -->
-                <section class="card clip-panel">
-                    <div class="panel-header">
-                        <div class="panel-title">
-                            <span class="pill pill-primary">Live Sync</span>
-                            <h2>Active Clipboard</h2>
-                        </div>
-                        <div class="panel-tools">
-                            <span class="status-time" id="last-updated" data-time="">Syncing...</span>
-                            <button id="btn-copy-live" class="btn btn-secondary btn-xs">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                                Copy
-                            </button>
-                            <button id="btn-clear-live" class="btn btn-ghost-danger btn-xs">Clear</button>
-                        </div>
-                    </div>
-                    
-                    <textarea id="clipboard-text" placeholder="Type or paste primary clipboard text here... Realtime sync active across devices."></textarea>
-                    
-                    <div class="panel-footer">
-                        <span class="retention-info">Messages delete after 7 days</span>
-                        <button id="btn-send-to-chat" class="btn btn-primary">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                            Send to Chat Stream
-                        </button>
-                    </div>
-                </section>
-
-                <!-- File Transfers Panel -->
-                <section class="card file-panel">
-                    <div class="panel-header">
-                        <div class="panel-title">
-                            <h2>File Vault</h2>
-                        </div>
-                        <div class="panel-tools">
-                            <span class="badge-warning">Files auto-delete after 48 hours</span>
-                            <button id="btn-upload" class="btn btn-secondary btn-xs">
-                                Upload File
-                            </button>
-                            <input type="file" id="file-input" class="hidden">
-                        </div>
-                    </div>
-
-                    <div id="drop-zone" class="file-dropzone" title="Click or drag files here to upload">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        <p>Click or drag files here to upload, or paste images (Ctrl+V)</p>
-                        <span>Max file size: 25MB</span>
-                    </div>
-
-                    <div id="file-list" class="file-list"></div>
-                </section>
+                <textarea id="chat-input" placeholder="Type a message or paste copied text (Click any message to copy)..." rows="1"></textarea>
+                
+                <button id="btn-send" class="btn btn-primary btn-send" title="Send Message">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
             </div>
-
-            <!-- Right Side: Chat Stream UI -->
-            <div class="right-column">
-                <section class="card chat-panel">
-                    <div class="chat-header">
-                        <div class="chat-title">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                            <h2>Chat Stream</h2>
-                        </div>
-                        <button id="btn-clear-chat" class="btn btn-ghost-danger btn-xs">Clear Stream</button>
-                    </div>
-
-                    <!-- Scrollable Chat Stream Feed -->
-                    <div id="chat-messages" class="chat-feed">
-                        <div class="chat-empty">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                            <p>No messages in stream</p>
-                            <span>Messages sent from clipboard or typed below will appear here in real time.</span>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Chat Composer -->
-                    <div class="chat-composer">
-                        <textarea id="chat-input" placeholder="Type a message or press Enter to send..." rows="2"></textarea>
-                        <button id="btn-send-chat" class="btn btn-primary btn-icon" title="Send message">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                        </button>
-                    </div>
-                </section>
-            </div>
-        </div>
+        </footer>
     </div>
 
     <div id="toast-container"></div>

@@ -1,7 +1,7 @@
 {
   "name": "shared-clipboard",
   "version": "1.0.0",
-  "description": "Real-time shared clipboard and file sharing web app",
+  "description": "Real-time shared clipboard chat interface for text and file sharing",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
