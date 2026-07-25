@@ -154,13 +154,12 @@ body {
 
 .btn-sm { padding: 8px 14px; font-size: 0.8rem; border-radius: var(--radius-md); }
 .btn-icon-sm {
-    width: 38px; height: 38px; padding: 0; border-radius: var(--radius-md);
+    width: 38px; height: 38px; padding: 0 !important; border-radius: var(--radius-md);
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
     transition: all 0.2s ease;
 }
 .btn-icon-sm svg {
     display: block;
-    margin: auto;
 }
 .btn-secondary {
     background: rgba(255, 255, 255, 0.07); color: var(--text-primary);
@@ -341,15 +340,100 @@ textarea#chat-input::placeholder { color: var(--text-muted); }
 .btn-send:hover { transform: scale(1.06); box-shadow: 0 6px 20px var(--primary-glow); }
 
 /* Toast Notifications */
-#toast-container { position: fixed; bottom: 90px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+#toast-container { position: fixed; bottom: 84px; right: 24px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
 .toast {
-    background: rgba(18, 22, 38, 0.85); color: var(--text-primary); padding: 12px 18px; border-radius: var(--radius-md);
-    border: 1px solid var(--card-border); font-size: 0.88rem; border-left: 4px solid var(--primary-light);
+    display: inline-flex; align-items: center; gap: 10px;
+    background: rgba(18, 22, 38, 0.88); color: var(--text-primary);
+    padding: 10px 18px; border-radius: var(--radius-full);
+    border: 1px solid var(--card-border); font-size: 0.85rem; font-weight: 500;
     backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-    box-shadow: 0 12px 32px rgba(0,0,0,0.6); animation: toastSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6), 0 0 16px var(--primary-glow);
+    animation: toastSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: auto;
 }
-.toast.error { border-left-color: var(--danger); }
-@keyframes toastSlide { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.toast.error {
+    border-color: rgba(239, 68, 68, 0.4);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6), 0 0 16px rgba(239, 68, 68, 0.3);
+}
+@keyframes toastSlide { from { transform: translateY(20px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+
+/* Delete Message Button in Meta Header */
+.btn-delete-msg {
+    background: transparent; border: none; color: var(--text-muted);
+    font-size: 1rem; cursor: pointer; padding: 0 4px; border-radius: 4px;
+    line-height: 1; transition: color 0.15s; margin-left: auto;
+    opacity: 0.6;
+}
+.message-wrapper:hover .btn-delete-msg { opacity: 1; }
+.btn-delete-msg:hover { color: var(--danger); }
+
+/* Image Preview & Lightbox Styles */
+.image-preview-card {
+    position: relative; border-radius: var(--radius-lg); overflow: hidden;
+    cursor: pointer; max-width: 320px; border: 1px solid var(--card-border);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.image-preview-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+.chat-image-thumbnail {
+    width: 100%; max-height: 240px; object-fit: cover; display: block;
+}
+.image-card-overlay {
+    position: absolute; bottom: 0; inset-x: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+    padding: 12px 14px 8px; display: flex; justify-content: space-between;
+    font-size: 0.76rem; color: #fff;
+}
+
+/* Lightbox Modal */
+.lightbox-container {
+    position: relative; max-width: 90vw; max-height: 90vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.lightbox-container img {
+    max-width: 100%; max-height: 75vh; border-radius: var(--radius-lg);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8); object-fit: contain;
+}
+.lightbox-close {
+    position: absolute; top: -40px; right: 0;
+    background: transparent; border: none; color: #fff; font-size: 2.2rem;
+    cursor: pointer; line-height: 1;
+}
+.lightbox-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; margin-top: 14px; color: var(--text-secondary); font-size: 0.88rem;
+}
+
+/* Glassmorphism Context Menu */
+.context-menu {
+    position: fixed; z-index: 3000;
+    min-width: 210px; background: rgba(18, 22, 38, 0.92);
+    border: 1px solid var(--card-border); border-radius: var(--radius-md);
+    padding: 6px; backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+    animation: ctxFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes ctxFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+.context-menu-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    font-size: 0.84rem; font-weight: 500; color: var(--text-primary);
+    border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s;
+}
+.context-menu-item:hover {
+    background: rgba(99, 102, 241, 0.2); color: #fff;
+}
+.context-menu-item.danger {
+    color: #fca5a5;
+}
+.context-menu-item.danger:hover {
+    background: rgba(239, 68, 68, 0.2); color: #fff;
+}
+.context-menu-divider {
+    height: 1px; background: var(--card-border); margin: 4px 0;
+}
 
 /* Hide scrollbar visually while maintaining scroll functionality */
 .chat-stream, textarea, body, html {

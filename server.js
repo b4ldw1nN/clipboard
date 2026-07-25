@@ -84,6 +84,14 @@ async function initDatabase() {
         db.run("ALTER TABLE files ADD COLUMN room_id TEXT NOT NULL DEFAULT 'default'");
     } catch (e) { /* Column already exists */ }
 
+    try {
+        db.run("ALTER TABLE files ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+    } catch (e) { /* Column already exists */ }
+
+    try {
+        db.run("ALTER TABLE messages ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+    } catch (e) { /* Column already exists */ }
+
     saveDb();
     console.log('Connected to sql.js SQLite database successfully.');
 
@@ -256,16 +264,83 @@ app.post('/api/messages', (req, res) => {
     }
 });
 
+// DELETE /api/messages/:id - Delete single message
+app.delete('/api/messages/:id', (req, res) => {
+    try {
+        const msgId = parseInt(req.params.id, 10);
+        if (isNaN(msgId)) return res.status(400).json({ error: 'Invalid message ID' });
+
+        const stmt = db.prepare('SELECT id, room_id, file_id FROM messages WHERE id = ?');
+        stmt.bind([msgId]);
+        stmt.step();
+        const msg = stmt.getAsObject();
+        stmt.free();
+
+        if (!msg || !msg.id) return res.status(404).json({ error: 'Message not found' });
+
+        if (msg.file_id) {
+            const fStmt = db.prepare('SELECT stored_name FROM files WHERE id = ?');
+            fStmt.bind([msg.file_id]);
+            fStmt.step();
+            const f = fStmt.getAsObject();
+            fStmt.free();
+            if (f && f.stored_name) {
+                const filePath = path.join(UPLOAD_DIR, f.stored_name);
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            }
+            db.run('DELETE FROM files WHERE id = ?', [msg.file_id]);
+        }
+
+        db.run('DELETE FROM messages WHERE id = ?', [msgId]);
+        saveDb();
+
+        if (msg.room_id) {
+            io.to(msg.room_id).emit('message:deleted', { id: msg.id });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error deleting message:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/room/messages?room_id=xyz - Delete all messages in a room
+app.delete('/api/room/messages', (req, res) => {
+    try {
+        const roomId = (req.query.room_id || '').trim().toLowerCase();
+        if (!roomId) return res.status(400).json({ error: 'Room ID required' });
+
+        const fStmt = db.prepare('SELECT stored_name FROM files WHERE room_id = ?');
+        fStmt.bind([roomId]);
+        while (fStmt.step()) {
+            const f = fStmt.getAsObject();
+            if (f && f.stored_name) {
+                const filePath = path.join(UPLOAD_DIR, f.stored_name);
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+            }
+        }
+        fStmt.free();
+
+        db.run('DELETE FROM files WHERE room_id = ?', [roomId]);
+        db.run('DELETE FROM messages WHERE room_id = ?', [roomId]);
+        saveDb();
+
+        io.to(roomId).emit('room:cleared', { room_id: roomId });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error clearing room history:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /api/messages?room_id=xyz - Get room history
 app.get('/api/messages', (req, res) => {
     try {
         const roomId = (req.query.room_id || '').trim().toLowerCase();
-        console.log(`[DEBUG GET /api/messages] Querying messages for room_id: "${roomId}"`);
         if (!roomId) return res.status(400).json({ error: 'Room ID required' });
 
         const database = db;
         if (!database) {
-            console.error('[DEBUG GET /api/messages] Database instance is null');
             return res.status(500).json({ error: 'Database instance is null' });
         }
 
@@ -286,11 +361,10 @@ app.get('/api/messages', (req, res) => {
             rows.push(stmt.getAsObject());
         }
         stmt.free();
-        console.log(`[DEBUG GET /api/messages] Found ${rows.length} messages for room "${roomId}"`);
         res.json(rows.reverse());
     } catch (err) {
-        console.error('[DEBUG GET /api/messages EXCEPTION]:', err);
-        res.status(500).json({ error: err.message, stack: err.stack });
+        console.error('Error fetching room messages:', err);
+        res.status(500).json({ error: 'Failed to fetch messages' });
     }
 });
 

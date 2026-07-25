@@ -34,8 +34,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const appContainer = document.getElementById('app-container');
     const currentRoomTag = document.getElementById('current-room-tag');
     const profileNameText = document.getElementById('profile-name-text');
+    const btnShareLink = document.getElementById('btn-share-link');
     const btnCopyRoom = document.getElementById('btn-copy-room');
+    const btnExportChat = document.getElementById('btn-export-chat');
+    const btnClearAll = document.getElementById('btn-clear-all');
     const btnLeaveRoom = document.getElementById('btn-leave-room');
+
+    const lightboxModal = document.getElementById('lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-img');
+    const lightboxFilename = document.getElementById('lightbox-filename');
+    const lightboxDownload = document.getElementById('lightbox-download');
+    const btnCloseLightbox = document.getElementById('btn-close-lightbox');
 
     const dragOverlay = document.getElementById('drag-overlay');
     const chatStream = document.getElementById('chat-stream');
@@ -71,14 +80,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
         const toast = document.createElement('div');
         toast.className = `toast ${isError ? 'error' : ''}`;
-        toast.textContent = message;
+        
+        const iconSvg = isError
+            ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`
+            : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+        
+        toast.innerHTML = `${iconSvg}<span>${message}</span>`;
         container.appendChild(toast);
         setTimeout(() => {
             toast.style.transition = 'opacity 0.2s, transform 0.2s';
             toast.style.opacity = '0';
-            toast.style.transform = 'translateX(30px)';
+            toast.style.transform = 'translateY(-10px)';
             setTimeout(() => toast.remove(), 200);
-        }, 3000);
+        }, 2600);
     }
 
     // --- Room Creation & Joining Handlers ---
@@ -136,6 +150,130 @@ document.addEventListener('DOMContentLoaded', () => {
         loadChatHistory();
     }
 
+    // Share Direct Room Link
+    if (btnShareLink) {
+        btnShareLink.addEventListener('click', () => {
+            if (!currentRoomId) return;
+            const fullUrl = `${window.location.origin}/#${currentRoomId}`;
+            navigator.clipboard.writeText(fullUrl).then(() => {
+                showToast('Direct Room Link copied to clipboard!');
+            });
+        });
+    }
+
+    const contextMenu = document.getElementById('context-menu');
+    const ctxCopy = document.getElementById('ctx-copy');
+    const ctxExport = document.getElementById('ctx-export');
+    const ctxDelete = document.getElementById('ctx-delete');
+    const ctxClearAll = document.getElementById('ctx-clear-all');
+
+    let activeCtxTarget = null; // Store reference to target message wrapper
+
+    // Helper functions for Export & Clear All
+    async function triggerExportChat() {
+        if (!currentRoomId) return;
+        try {
+            const res = await fetch(`/api/messages?room_id=${encodeURIComponent(currentRoomId)}`);
+            if (!res.ok) throw new Error();
+            const messages = await res.json();
+
+            let md = `# Shared Clipboard History - Room: ${currentRoomId}\n\n`;
+            md += `*Exported on ${new Date().toLocaleString()}*\n\n---\n\n`;
+
+            messages.forEach(msg => {
+                const time = new Date(msg.created_at).toLocaleString();
+                if (msg.type === 'file') {
+                    md += `**[${time}] ${msg.username}:** 📎 File Attachment: *${msg.original_name || msg.content}* (${formatBytes(msg.size)})\n\n`;
+                } else {
+                    md += `**[${time}] ${msg.username}:**\n\`\`\`\n${msg.content}\n\`\`\`\n\n`;
+                }
+            });
+
+            const blob = new Blob([md], { type: 'text/markdown' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `clipboard_room_${currentRoomId}_history.md`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            showToast('Room chat history exported!');
+        } catch {
+            showToast('Failed to export room history', true);
+        }
+    }
+
+    async function triggerClearAll() {
+        if (!currentRoomId) return;
+        if (!confirm('Are you sure you want to clear all messages in this room?')) return;
+        try {
+            const res = await fetch(`/api/room/messages?room_id=${encodeURIComponent(currentRoomId)}`, { method: 'DELETE' });
+            if (res.ok) {
+                chatStream.innerHTML = '';
+                showToast('All room messages cleared');
+            } else {
+                showToast('Failed to clear room', true);
+            }
+        } catch {
+            showToast('Failed to clear room', true);
+        }
+    }
+
+    // Context Menu Event Listeners
+    document.addEventListener('click', () => {
+        if (contextMenu) contextMenu.classList.add('hidden');
+    });
+
+    if (ctxCopy) {
+        ctxCopy.addEventListener('click', () => {
+            if (activeCtxTarget) {
+                const txt = activeCtxTarget.dataset.content || '';
+                if (txt) {
+                    navigator.clipboard.writeText(txt).then(() => showToast('Text copied to clipboard!'));
+                }
+            }
+        });
+    }
+
+    if (ctxExport) {
+        ctxExport.addEventListener('click', triggerExportChat);
+    }
+
+    if (ctxClearAll) {
+        ctxClearAll.addEventListener('click', triggerClearAll);
+    }
+
+    if (ctxDelete) {
+        ctxDelete.addEventListener('click', async () => {
+            if (activeCtxTarget && activeCtxTarget.dataset.msgId) {
+                const msgId = activeCtxTarget.dataset.msgId;
+                try {
+                    const res = await fetch(`/api/messages/${msgId}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        activeCtxTarget.style.transition = 'all 0.25s ease';
+                        activeCtxTarget.style.opacity = '0';
+                        activeCtxTarget.style.transform = 'translateY(10px)';
+                        setTimeout(() => activeCtxTarget.remove(), 250);
+                        showToast('Message deleted');
+                    } else {
+                        showToast('Failed to delete message', true);
+                    }
+                } catch {
+                    showToast('Failed to delete message', true);
+                }
+            }
+        });
+    }
+
+    // Lightbox Modal Handlers
+    if (btnCloseLightbox) {
+        btnCloseLightbox.addEventListener('click', () => lightboxModal.classList.add('hidden'));
+    }
+    if (lightboxModal) {
+        lightboxModal.addEventListener('click', (e) => {
+            if (e.target === lightboxModal) lightboxModal.classList.add('hidden');
+        });
+    }
+
     // Copy Room Code Button
     btnCopyRoom.addEventListener('click', () => {
         if (!currentRoomId) return;
@@ -181,8 +319,24 @@ document.addEventListener('DOMContentLoaded', () => {
             appendMessageBubble(msg);
         });
 
-        socket.on('file:uploaded', (msg) => {
-            appendMessageBubble(msg);
+        socket.on('message:deleted', (data) => {
+            const el = document.getElementById(`msg-${data.id}`);
+            if (el) {
+                el.style.transition = 'all 0.25s ease';
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(10px)';
+                setTimeout(() => el.remove(), 250);
+            }
+        });
+
+        socket.on('room:cleared', () => {
+            chatStream.innerHTML = `
+                <div id="empty-state" class="empty-state">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <p>No messages in this room yet</p>
+                    <span>Type or paste text/files below. Anyone with this Room Code can join.</span>
+                </div>`;
+            showToast('Room chat cleared');
         });
 
         socket.on('message:typing', (data) => {
@@ -241,28 +395,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let bubbleContentHtml = '';
 
+        const isImage = msg.type === 'file' && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(msg.original_name || msg.content || '');
+
         if (msg.type === 'file') {
             const downloadUrl = `/download/${msg.file_id || msg.id}`;
             const fileName = msg.original_name || msg.content || 'Attachment';
             const fileSize = formatBytes(msg.size);
 
-            bubbleContentHtml = `
-                <div class="chat-bubble file-bubble">
-                    <div class="file-card">
-                        <div class="file-icon">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+            if (isImage) {
+                bubbleContentHtml = `
+                    <div class="chat-bubble image-bubble">
+                        <div class="image-preview-card" data-url="${downloadUrl}" data-name="${fileName}">
+                            <img src="${downloadUrl}" alt="${fileName}" class="chat-image-thumbnail">
+                            <div class="image-card-overlay">
+                                <span class="file-name">${fileName}</span>
+                                <span class="file-size">${fileSize}</span>
+                            </div>
                         </div>
-                        <div class="file-details">
-                            <span class="file-name" title="${fileName}">${fileName}</span>
-                            <span class="file-size">${fileSize}</span>
-                        </div>
-                        <a href="${downloadUrl}" target="_blank" download class="btn-download-file">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Save
-                        </a>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                bubbleContentHtml = `
+                    <div class="chat-bubble file-bubble">
+                        <div class="file-card">
+                            <div class="file-icon">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                            </div>
+                            <div class="file-details">
+                                <span class="file-name" title="${fileName}">${fileName}</span>
+                                <span class="file-size">${fileSize}</span>
+                            </div>
+                            <a href="${downloadUrl}" target="_blank" download class="btn-download-file">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Save
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
         } else {
             bubbleContentHtml = `
                 <div class="chat-bubble text-bubble" title="Click anywhere to copy text">
@@ -270,6 +440,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }
+
+        wrapper.dataset.msgId = msg.id;
+        wrapper.dataset.content = msg.content || '';
 
         wrapper.innerHTML = `
             <div class="message-meta">
@@ -279,12 +452,40 @@ document.addEventListener('DOMContentLoaded', () => {
             ${bubbleContentHtml}
         `;
 
+        // RIGHT CLICK CONTEXT MENU ON MESSAGE BUBBLE
+        wrapper.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            activeCtxTarget = wrapper;
+
+            if (contextMenu) {
+                contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 220)}px`;
+                contextMenu.style.top = `${Math.min(e.clientY, window.innerHeight - 180)}px`;
+                contextMenu.classList.remove('hidden');
+            }
+        });
+
+        // Image Lightbox Trigger
+        if (isImage) {
+            const imgCard = wrapper.querySelector('.image-preview-card');
+            if (imgCard) {
+                imgCard.addEventListener('click', () => {
+                    const url = imgCard.getAttribute('data-url');
+                    const name = imgCard.getAttribute('data-name');
+                    lightboxImg.src = url;
+                    lightboxFilename.textContent = name;
+                    lightboxDownload.href = url;
+                    lightboxModal.classList.remove('hidden');
+                });
+            }
+        }
+
         if (msg.type === 'text') {
             wrapper.querySelector('.message-text').textContent = msg.content || '';
 
             // CLICK MESSAGE BUBBLE TO COPY TEXT
             const bubbleEl = wrapper.querySelector('.chat-bubble');
-            bubbleEl.addEventListener('click', () => {
+            bubbleEl.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-delete-msg')) return;
                 const textToCopy = msg.content || '';
                 navigator.clipboard.writeText(textToCopy).then(() => {
                     let badge = bubbleEl.querySelector('.copied-badge');
